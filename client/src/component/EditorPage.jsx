@@ -13,9 +13,12 @@ function EditorPage() {
   useEffect(() => {
     const init = async () => {
       socketRef.current = await initSocket();
-      socketRef.current.emit("join room", {
+      /*socketRef.current.emit("join room", {
         roomId,
         username: location.state?.username,
+      });*/
+      socketRef.current.on("connect_error", (err) => {
+        console.error("Socket connection error:", err);
       });
     };
     init();
