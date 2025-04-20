@@ -4,29 +4,59 @@ import Editor from "./Editor.jsx";
 import { useRef } from "react";
 import { initSocket } from "../Socket.jsx";
 import { useEffect } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
 
 function EditorPage() {
   const socketRef = useRef();
+  const navigate = useNavigate();
   const location = useLocation();
   const { roomId } = useParams();
   useEffect(() => {
     const init = async () => {
       socketRef.current = await initSocket();
-      /*socketRef.current.emit("join room", {
-        roomId,
-        username: location.state?.username,
-      });*/
       socketRef.current.on("connect_error", (err) => {
         console.error("Socket connection error:", err);
       });
+      socketRef.current.on("connect_failed", (err) => {
+        console.error("Socket connection failed:", err);
+      });
+      const handleError = (e) => {
+        console.error("Socket error:", e);
+        toast.error("Socket error, please try again later.");
+        navigate("/");
+      };
+      socketRef.current.emit("join room", {
+        roomId,
+        username: location.state?.username,
+      });
+      socketRef.current.on("joined", ({ clients, username, socketId }) => {
+        if (username !== location.state?.username) {
+          toast.success(`${username} joined the room`);
+        }
+        setClient(clients);
+      });
+      // Listen for the "disconnected" event
+      socketRef.current.on("disconnected", ({ socketId, username }) => {
+        toast.error(`${username} left the room`);
+        setClient((prev) => {
+          return prev.filter((c) => c.socketId !== socketId);
+        });
+      });
     };
     init();
+    return () => {
+      socketRef.current && socketRef.current.disconnect();
+      socketRef.current.off(ACTIONS.JOINED);
+      socketRef.current.off(ACTIONS.DISCONNECTED);
+    };
   }, []);
-  const [client, setClient] = useState([
-    { socketId: 1, username: "vivek singh" },
-    { socketId: 2, username: "sachin" },
-  ]);
+
+  const [client, setClient] = useState([]);
+  if (!location.state) {
+    toast.error("Username is required to join the room");
+    navigate("/");
+  }
   return (
     <div className="container-fluid vh-100">
       <div className="row h-100">
