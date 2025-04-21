@@ -11,17 +11,31 @@ function Editor() {
 
   useEffect(() => {
     const init = async () => {
-      if (!editorRef.current) return;
+      const editor = CodeMirror.fromTextArea(
+        document.getElementById("realtimeEditor"),
+        {
+          mode: { name: "javascript", json: true },
+          theme: "dracula",
+          autoCloseTags: true,
+          autoCloseBrackets: true,
+          lineNumbers: true,
+        }
+      );
+      // for sync the code
+      editorRef.current = editor;
 
-      const editor = CodeMirror.fromTextArea(editorRef.current, {
-        mode: { name: "javascript", json: true },
-        theme: "dracula",
-        lineNumbers: true,
-        autoCloseTags: true,
-        autoCloseBrackets: true,
+      editor.setSize(null, "100%");
+      editorRef.current.on("change", (instance, changes) => {
+        const { origin } = changes;
+        const code = instance.getValue();
+        onCodeChange(code);
+        if (origin !== "setValue") {
+          socketRef.current.emit(ACTIONS.CODE_CHANGE, {
+            roomId,
+            code,
+          });
+        }
       });
-
-      editor.setSize("100%", "100%");
     };
 
     init();
